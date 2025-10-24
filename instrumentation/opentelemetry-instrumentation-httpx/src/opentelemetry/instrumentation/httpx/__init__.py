@@ -286,6 +286,7 @@ class ResponseInfo(typing.NamedTuple):
     headers: httpx.Headers | None
     stream: httpx.SyncByteStream | httpx.AsyncByteStream
     extensions: dict[str, typing.Any] | None
+    response: httpx.Response
 
 
 def _get_default_span_name(method: str) -> str:
@@ -622,7 +623,7 @@ class SyncOpenTelemetryTransport(httpx.BaseTransport):
                     self._response_hook(
                         span,
                         request_info,
-                        ResponseInfo(status_code, headers, stream, extensions),
+                        ResponseInfo(status_code, headers, stream, extensions, response),
                     )
 
             if exception:
@@ -778,11 +779,13 @@ class AsyncOpenTelemetryTransport(httpx.AsyncBaseTransport):
             _inject_propagation_headers(headers, args, kwargs)
 
             start_time = default_timer()
+            logger.info(f"Start time: {start_time}")
 
             try:
                 response = await self._transport.handle_async_request(
                     *args, **kwargs
                 )
+                logger.info(f"Response: {response}")
             except Exception as exc:  # pylint: disable=W0703
                 exception = exc
                 response = getattr(exc, "response", None)
@@ -816,7 +819,7 @@ class AsyncOpenTelemetryTransport(httpx.AsyncBaseTransport):
                     await self._response_hook(
                         span,
                         request_info,
-                        ResponseInfo(status_code, headers, stream, extensions),
+                        ResponseInfo(status_code, headers, stream, extensions, response),
                     )
 
             if exception:
@@ -1047,7 +1050,7 @@ class HTTPXClientInstrumentor(BaseInstrumentor):
                     response_hook(
                         span,
                         request_info,
-                        ResponseInfo(status_code, headers, stream, extensions),
+                        ResponseInfo(status_code, headers, stream, extensions, response),
                     )
 
             if exception:
@@ -1164,7 +1167,7 @@ class HTTPXClientInstrumentor(BaseInstrumentor):
                     await async_response_hook(
                         span,
                         request_info,
-                        ResponseInfo(status_code, headers, stream, extensions),
+                        ResponseInfo(status_code, headers, stream, extensions, response),
                     )
 
             if exception:
